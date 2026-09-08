@@ -32,7 +32,8 @@ The button presses automatically cleared on release.
 */
 
 #include "USBHost_t36.h"
-#include "RA8876_Config_SPI.h"#include <SPI.h>
+#include "RA8876_Config_SPI.h"
+#include <SPI.h>
 #include <RA8876_t3.h>
 
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
