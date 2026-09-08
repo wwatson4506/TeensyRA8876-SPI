@@ -11,24 +11,8 @@
 * These graphic cursors have two color setting, Foreground color and
 * Outline color.
 * I have included a few experimental routines of my own for detecting
-* single and double clicks of the left mouse button.
+* single click, double click and dragging of mouse buttons.
 *
-* For double and single click testing mouse.cpp in USBHost_t36 library
-* has to have "//	buttons = 0;" commented out.
-* 
-void MouseController::mouseDataClear() {
-	mouseEvent = false;
-//	buttons = 0;
-	mouseX  = 0;
-	mouseY  = 0;
-	wheel   = 0;
-	wheelH  = 0;
-}
-
-The button presses automatically cleared on release.
-* I don't think they need to be part of "mouseDataClear();". Also
-* wheel and wheelH are cleared when there is a button press or there is
-* movement of the mouse.
 */
 
 #include "USBHost_t36.h"
@@ -37,10 +21,6 @@ The button presses automatically cleared on release.
 #include <RA8876_t3.h>
 
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
-
-#define LEFT_MOUSE_BUTTON 1
-#define RIGHT_MOUSE_BUTTON 2
-#define MIDDLE_MOUSE_BUTTON 4
 
 USBHost myusb;
 USBHub hub1(myusb);
@@ -58,59 +38,48 @@ MouseController mouse1(myusb);
 USBHIDParser hid1(myusb); // Needed for USB mouse.
 USBHIDParser hid2(myusb); // Needed for use with wireless keyboard/mouse combo.
 
+const char *button[] = {"IDLE        ",
+	                    "DRAG STARTED",
+	                    "DRAGGING    ",
+	                    "DRAG_ENDED  ",
+	                    "SINGLE_CLICK",
+	                    "DOUBLE_CLICK"}; 
+
+// Button states 
+enum  { IDLE = 0, DRAG_INITIATED, DRAGGING, DRAG_RELEASED, SINGLE_CLICK, DOUBLE_CLICK };
+
 // A structure to hold results of mouse operations.
 // Some are not used in this sketch.
 struct usbMouseMsg_struct {
+  bool isButtonDown = false; 
+  bool lastButtonState = false;
+  bool isDragging = false;
+  unsigned long lastClickTime = 0;
+  bool expectingSecondClick = false;
   uint8_t buttons;
-  uint8_t snglClickCnt;
-  uint8_t dblClickCnt;
-  uint8_t clickCount;
-  int8_t mousex;
-  int8_t mousey;
+  uint8_t button_state = IDLE;
+  uint8_t scCount = 0;
+  uint8_t dcCount = 0;
+  int accumulatedX = 0;
+  int accumulatedY = 0;
   int16_t scaledX;
   int16_t scaledY;
   int8_t wheel;
   int8_t wheelH;
-  int16_t mouseXpos;
-  int16_t mouseYpos;
-  boolean mouseEvent;
+  bool mouseEvent;
 };
 
 usbMouseMsg_struct mouse_msg;
 
-// global Variables for scaleMouseXY.
-int16_t fine_dx = 0;
-int16_t fine_dy = 0;
-int16_t event_dx = 0;
-int16_t event_dy = 0;
-int16_t nevent_dx = 0;
-int16_t nevent_dy = 0;
-// Adjustable parameters for mouse cursor movement.
-int16_t delta = 127;
-int16_t accel = 5;
-int16_t scaleX = 2;
-int16_t scaleY = 2;
-uint8_t scCount = 0;
-uint8_t dcCount = 0;
+// Configuration Constants
+const unsigned long DOUBLE_CLICK_WINDOW = 350; // Maximum time between clicks (ms) 
+const int DRAG_THRESHOLD = 2; // Prevent micro-movements/shaking from falsely starting a drag
 
 // Scale mouse XY to fit our screen (1023x599).
 void scaleMouseXY(void) {
-  nevent_dx = (int16_t)mouse1.getMouseX();
-  nevent_dy = (int16_t)mouse1.getMouseY();
-  if(abs(nevent_dx) + abs(nevent_dy) > delta) {
-    nevent_dx *= accel;
-    nevent_dy *= accel;
-  }
-  event_dx += nevent_dx;
-  event_dy += nevent_dy;
-  fine_dx += event_dx; 
-  fine_dy += event_dy; 
-  event_dx = fine_dx / scaleX;
-  event_dy = fine_dy / scaleY;
-  fine_dx %= scaleX;
-  fine_dy %= scaleY;
-  mouse_msg.scaledX += event_dx;
-  mouse_msg.scaledY += event_dy;
+  if(!mouse1.available()) return; // No sense hanging around here!!
+  mouse_msg.scaledX += (int16_t)mouse1.getMouseX();
+  mouse_msg.scaledY += (int16_t)mouse1.getMouseY();
   if(mouse_msg.scaledX < 0)
     mouse_msg.scaledX = 0;
   if(mouse_msg.scaledX > (uint16_t)1023)
@@ -121,95 +90,73 @@ void scaleMouseXY(void) {
     mouse_msg.scaledY = (uint16_t)599;
 }
 
-// Check for a mouse Event
-bool mouseEvent(void) {
-  if(!mouse1.available())
-    return false;
-  mouse_msg.wheel = (int8_t)mouse1.getWheel(); // Check for wheel movement
-  mouse_msg.wheelH = (int8_t)mouse1.getWheelH();
-  scaleMouseXY();
-  return true;
-}
-
 // Check for mouse button presses
 uint8_t getMouseButtons(void) {
   mouse_msg.buttons = (uint8_t)mouse1.getButtons();
   return mouse_msg.buttons;
 }
 
-void countMouseClicks(uint8_t button) {
-	uint8_t clickCount = 0;
-	uint32_t timerStart = 0;
-	uint32_t timeOut = 375;
-	bool getOut = false;
-
-    button &= 0x07; // Mask off three buttons
-	while(!getOut) {
-		// Check for Left mouse button double click.
-		if((getMouseButtons() & button)) {
-			if(clickCount == 0) {
-				mouse_msg.snglClickCnt++;
-				timerStart = millis(); 
-			}
-			clickCount++;
-			if(clickCount >= 2) {
-				clickCount = 0;
-				mouse_msg.dblClickCnt++;
-				getOut = true;
-			}
-			// This is blocking!!!!
-			while(getMouseButtons() & button) delay(1);
-		}
-		if(((millis()-timerStart) > timeOut) || (getOut == true))
-			break;
-	}
-}
-
-/*
-// A simple routine to detect for mouse button double clicks.
-// Single clicks will also be recorded even if a double click is
-// detected but can be ignored if needed. 
-void countMouseClicks(void) {
-  uint8_t clickCount = 0;
-  uint32_t timerStart = 0;
-  uint32_t timeOut = 375; // Set this for double click timeout
-  boolean getOut = false;
-  while(!getOut) {
-    // Check for Left mouse button double click.
-    if((getMouseButtons() & 1) == 1) {
-      if(clickCount == 0) {
-        mouse_msg.snglClickCnt++; // Single click detected
-        timerStart = millis();
+// Process mouse buttons
+uint8_t process_mouse(uint8_t button_num) {
+  scaleMouseXY();
+  mouse_msg.wheel += (int8_t)mouse1.getWheel(); // Check for wheel movement
+  mouse_msg.wheelH += (int8_t)mouse1.getWheelH();
+  mouse_msg.isButtonDown = button_num;
+  // Extract relative movement deltas
+  int16_t deltaX = mouse1.getMouseX();
+  int16_t deltaY = mouse1.getMouseY();
+  // 1. Edge Detection: BUTTON PRESSED ---
+  if(mouse_msg.isButtonDown && !mouse_msg.lastButtonState) {
+    unsigned long currentTime = millis();
+    mouse_msg.accumulatedX = 0;
+    mouse_msg.accumulatedY = 0;
+    mouse_msg.isDragging = false;
+    if(mouse_msg.expectingSecondClick) {
+      if((currentTime - mouse_msg.lastClickTime) <= DOUBLE_CLICK_WINDOW) {
+        mouse_msg.button_state = DOUBLE_CLICK;
+        mouse_msg.dcCount++;
+        mouse_msg.expectingSecondClick = false; // Reset sequence
+      } else {
+          mouse_msg.lastClickTime = currentTime;
       }
-      clickCount++;
-      if(clickCount >= 2) { // No more than two clicks counts				
-        clickCount = 0; 
-        mouse_msg.dblClickCnt++; // Double click detected
-        getOut = true; // All done. Exit
-      }
-      while(((getMouseButtons() & 1) != 0)) // Wait for button release
-        delay(0); // ?
+    } else {
+      mouse_msg.expectingSecondClick = true;
+      mouse_msg.lastClickTime = currentTime;
     }
-    delay(0); // ?
-    if(((millis()-timerStart) > timeOut) || (getOut == true))
-      break; // Nothing happened getOut
   }
-}
-*/
-// Check for a double left mouse button click
-uint8_t getDblClick(void) {
-  uint8_t dClick = mouse_msg.dblClickCnt;
-  if(dClick > 0)
-    mouse_msg.dblClickCnt = 0;
-    return dClick;
-}
-
-// Check for a single left mouse button click
-uint8_t getSnglClick(void) {
-  uint8_t sClick = mouse_msg.snglClickCnt;
-  if(sClick > 0)
-    mouse_msg.snglClickCnt = 0;
-    return sClick;
+  // 2. State Processing: BUTTON HELD DOWN & MOUSE MOVING ---
+  if(mouse_msg.isButtonDown) {
+    mouse_msg.accumulatedX += deltaX;
+    mouse_msg.accumulatedY += deltaY;
+    // Check if movement exceeds the deadzone threshold to start or continue a drag
+    if(abs(mouse_msg.accumulatedX) > DRAG_THRESHOLD || abs(mouse_msg.accumulatedY) > DRAG_THRESHOLD) {
+      // If this is the exact moment the drag starts, suppress pending single clicks
+      if(!mouse_msg.isDragging) {
+        mouse_msg.isDragging = true;
+        mouse_msg.expectingSecondClick = false; // Dragging invalidates an incoming click event
+        mouse_msg.button_state = DRAG_INITIATED;
+      }
+      // Call the active drag step with current motion deltas
+        mouse_msg.button_state = DRAGGING;
+    }
+  }
+  // --- 3. Edge Detection: BUTTON RELEASED ---
+  if(!mouse_msg.isButtonDown && mouse_msg.lastButtonState) {
+    if(mouse_msg.isDragging) {
+      mouse_msg.isDragging = false;
+      mouse_msg.button_state = IDLE;
+    }
+  }
+  // Save state for transition history tracking
+  mouse_msg.lastButtonState = mouse_msg.isButtonDown;
+  // 4. Asynchronous Click Expiration Window ---
+  // If the button was pressed, released, and no dragging or second click happens:
+  if(mouse_msg.expectingSecondClick && !mouse_msg.isButtonDown && (millis() - mouse_msg.lastClickTime > DOUBLE_CLICK_WINDOW)) {
+    mouse_msg.button_state = SINGLE_CLICK;
+    mouse_msg.scCount++;
+    mouse_msg.expectingSecondClick = false; 
+  }
+  return mouse_msg.button_state;	
 }
 
 void setup() {
@@ -253,23 +200,23 @@ void setup() {
 
 }
 
-void loop() {
-  if(mouseEvent()) { // Wait for a mouse event.
-    tft.Graphic_Cursor_XY(mouse_msg.scaledX, mouse_msg.scaledY); // Center cursor on screen
+void display_mouse_data(void) {
+    tft.Graphic_Cursor_XY(mouse_msg.scaledX, mouse_msg.scaledY); // Position cursor on screen
     tft.textxy(0,5);
-    tft.printf("Mouse X: %4.4d\n", mouse_msg.scaledX);
-    tft.printf("Mouse Y: %3.3d\n", mouse_msg.scaledY);
-    tft.printf("Buttons: %d\n", getMouseButtons());
-    tft.printf("Wheel: %2d\n", mouse_msg.wheel);
-    tft.printf("WheelH: %2d\n", mouse_msg.wheelH);
+    tft.printf("      Mouse X: %4d\n", mouse_msg.scaledX);
+    tft.printf("      Mouse Y: %4d\n", mouse_msg.scaledY);
+    tft.printf("      Buttons: %4d\n", getMouseButtons());
+    tft.printf("        Wheel: %4d\n", mouse_msg.wheel);
+    tft.printf("       WheelH: %4d\n", mouse_msg.wheelH);
+    tft.printf("Single Clicks: %4d\n", mouse_msg.scCount);
+    tft.printf("Double Clicks: %4d\n", mouse_msg.dcCount);
+    tft.printf("Button State: %s\n",button[mouse_msg.button_state]);
+}
 
-	countMouseClicks(LEFT_MOUSE_BUTTON); // ***** This method is blocking *****
+void loop() {
+  myusb.Task();
+  display_mouse_data();
+  process_mouse(mouse_msg.buttons);
+  mouse1.mouseDataClear(); 
 
-    scCount += getSnglClick(); // Add to Single Click Count.
-    dcCount += getDblClick(); // Add to Double Click Count.
-    tft.printf("Single Clicks: %d\n", scCount);
-    tft.printf("Double Clicks: %d\n", dcCount);
-
-    mouse1.mouseDataClear();
-  }	
 }
