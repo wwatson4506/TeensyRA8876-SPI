@@ -13,6 +13,25 @@
 * I have included a few experimental routines of my own for detecting
 * single click, double click and dragging of mouse buttons.
 *
+************************************************************************
+*************  I M P O R T A N T  M O D I F I C A T I O N **************
+************************************************************************
+* For double and single click testing "mouse.cpp" in USBHost_t36 library
+* has to have "//	buttons = 0;" commented out:
+* 
+void MouseController::mouseDataClear() {
+	mouseEvent = false;
+//	buttons = 0;
+	mouseX  = 0;
+	mouseY  = 0;
+	wheel   = 0;
+	wheelH  = 0;
+}
+************************************************************************
+* The button presses are automatically cleared on release of the button.
+* I don't think they need to be part of "mouseDataClear();". Also
+* wheel and wheelH are cleared when there is a button press or there is
+* movement of the mouse.
 */
 
 #include "USBHost_t36.h"
@@ -90,14 +109,9 @@ void scaleMouseXY(void) {
     mouse_msg.scaledY = (uint16_t)599;
 }
 
-// Check for mouse button presses
-uint8_t getMouseButtons(void) {
-  mouse_msg.buttons = (uint8_t)mouse1.getButtons();
-  return mouse_msg.buttons;
-}
-
 // Process mouse buttons
 uint8_t process_mouse(uint8_t button_num) {
+  mouse_msg.buttons = (uint8_t)mouse1.getButtons();
   scaleMouseXY();
   mouse_msg.wheel += (int8_t)mouse1.getWheel(); // Check for wheel movement
   mouse_msg.wheelH += (int8_t)mouse1.getWheelH();
@@ -173,8 +187,7 @@ void setup() {
   myusb.begin();
   mouse_msg.scaledX = 512;
   mouse_msg.scaledY = 300;
-
-  Serial.println("USB Mouse and Graphic Cursor Testing");
+  mouse_msg.buttons = 0;
 
 #if defined(USE_SPI_47000000)
   tft.begin(47000000); // Max is 47000000 MHz (using short 3" wires)
@@ -195,7 +208,7 @@ void setup() {
   tft.Set_Graphic_Cursor_Color_1(0xff); // White forground Color. (0 - 255)
   tft.Set_Graphic_Cursor_Color_2(0x00); // Black outline Color. (0 - 255)
   tft.Graphic_Cursor_XY(mouse_msg.scaledX, mouse_msg.scaledY); // Center cursor on screen.
-  tft.drawSquareFill(300,100,800,500,WHITE);
+  tft.drawSquareFill(316,100,816,500,WHITE);
   tft.setTextColor(GREEN, DARKBLUE);
 
 }
@@ -205,18 +218,17 @@ void display_mouse_data(void) {
     tft.textxy(0,5);
     tft.printf("      Mouse X: %4d\n", mouse_msg.scaledX);
     tft.printf("      Mouse Y: %4d\n", mouse_msg.scaledY);
-    tft.printf("      Buttons: %4d\n", getMouseButtons());
+    tft.printf("      Buttons: %4d\n", mouse_msg.buttons);
     tft.printf("        Wheel: %4d\n", mouse_msg.wheel);
     tft.printf("       WheelH: %4d\n", mouse_msg.wheelH);
     tft.printf("Single Clicks: %4d\n", mouse_msg.scCount);
     tft.printf("Double Clicks: %4d\n", mouse_msg.dcCount);
     tft.printf("Button State: %s\n",button[mouse_msg.button_state]);
 }
-
+ 
 void loop() {
   myusb.Task();
   display_mouse_data();
   process_mouse(mouse_msg.buttons);
   mouse1.mouseDataClear(); 
-
 }
