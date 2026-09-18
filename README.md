@@ -47,12 +47,20 @@ Power and Grounds
 - GND -----------------------> 1,2,13,31,39,40
 NOTE: All power and ground pins should be connected.
 
-Touch Screen (ER_TFTM101-1 40 pin dual inline connector)
+Capacative Touch Screen (ER_TFTM101-1 40 pin dual inline connector)
   Teensy 4.1            RA8876
 - 3.3V ---------------> CPT_/RST 36
 - 28   ---------------> CPT_INT  33
 - 25   ---------------> CPT_SDA  34
 - 24   ---------------> CPT_SCL  35
+
+Resistive Touch Screen (ER_TFTM101-1 40 pin dual inline connector)
+  Teensy 4.1            RA8876
+- 07  (CS1) ---------------> TP_/CS  32
+- 02  (ANY PIN) -----------> TP_/PEN  33
+- 26  (MOSI1) -------------> TP_DIN   34
+- 27  (SCK1) --------------> TP_SCLK  35
+- 01  (MISO1) -------------> TP_DOUT  36
 
 ```
 ***
