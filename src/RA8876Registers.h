@@ -939,7 +939,7 @@ struct Gbuttons {
   boolean laststate;
   char     label[10];
 };
-
+/*
 //https://i.pinimg.com/736x/4b/50/12/4b5012fc9d868d0394da7fa8217d7f92.jpg
 #define BLACK		0x0000
 #define WHITE		0xffff
@@ -963,7 +963,7 @@ struct Gbuttons {
 #define VIOLET		0xfc1f
 #define BLUEVIOLET	0x8010
 #define ORCHID		0xA145 
-
+*/
 /*--------------------------------------*/
 /* [RENDER TEXT OPTIMIZATIONS] +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
 From 0.70b11 the Font Rendering Engine has some optimizations for render font faster but this require much more code.
