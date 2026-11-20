@@ -3,7 +3,8 @@
 ## CHANGES:
 09-07-26:
 - Reworked "graphicCursor.ino" sketch. Installed new process_mouse() function for processing mouse delta X and delta Y scaling as well as processing mouse button single, double clicks and object dragging with mouse pointer.
-
+11-19-26:
+- Fixed color name conflicts in 'RA8876Registers.h' and all examples.
 
 This library is designed to be used with the TeensyRa8876-GFX-Common library and can be found here:
 - https://github.com/wwatson4506/TeensyRA8876-GFX-Common
