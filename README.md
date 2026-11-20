@@ -3,6 +3,7 @@
 ## CHANGES:
 09-07-26:
 - Reworked "graphicCursor.ino" sketch. Installed new process_mouse() function for processing mouse delta X and delta Y scaling as well as processing mouse button single, double clicks and object dragging with mouse pointer.
+
 11-19-26:
 - Fixed color name conflicts in 'RA8876Registers.h' and all examples.
 
