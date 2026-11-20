@@ -156,6 +156,9 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define COLOR65K_DARKMAGENTA   0x8010
 #define COLOR65K_BROWN         0xA145
 
+#define COLOR65K_DARKGREY      0x7BEF
+#define COLOR65K_NAVY          0x000F
+
 #define COLOR65K_GRAYSCALE1    2113
 #define COLOR65K_GRAYSCALE2    2113*2
 #define COLOR65K_GRAYSCALE3    2113*3
@@ -186,6 +189,34 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define COLOR65K_GRAYSCALE28   2113*28
 #define COLOR65K_GRAYSCALE29   2113*29
 #define COLOR65K_GRAYSCALE30   2113*30
+
+//https://i.pinimg.com/736x/4b/50/12/4b5012fc9d868d0394da7fa8217d7f92.jpg
+//#define BLACK		0x0000
+//#define WHITE		0xffff
+//#define RED			0xf800
+//#define LIGHTRED	0xfc10
+#define COLOR65K_CRIMSON		0x8000
+//#define GREEN		0x07e0
+//#define PALEGREEN	0x87f0
+//#define DARKGREEN	0x0400
+//#define BLUE		0x001f
+//#define LIGHTBLUE	0x051f
+
+#define COLOR65K_SKYBLUE		0x841f
+/*
+#define DARKBLUE	0x0010
+#define YELLOW		0xffe0
+#define LIGHTYELLOW	0xfff0
+#define DARKYELLOW	0x8400 // mustard
+#define CYAN		0x07ff
+#define LIGHTCYAN	0x87ff
+#define DARKCYAN	0x0410
+#define MAGENTA		0xf81f
+#define VIOLET		0xfc1f
+#define BLUEVIOLET	0x8010
+*/
+#define COLOR65K_ORCHID		0xA145 
+
 
 #define STRING_LINE1  0
 #define STRING_LINE2  32
@@ -939,31 +970,7 @@ struct Gbuttons {
   boolean laststate;
   char     label[10];
 };
-/*
-//https://i.pinimg.com/736x/4b/50/12/4b5012fc9d868d0394da7fa8217d7f92.jpg
-#define BLACK		0x0000
-#define WHITE		0xffff
-#define RED			0xf800
-#define LIGHTRED	0xfc10
-#define CRIMSON		0x8000
-#define GREEN		0x07e0
-#define PALEGREEN	0x87f0
-#define DARKGREEN	0x0400
-#define BLUE		0x001f
-#define LIGHTBLUE	0x051f
-#define SKYBLUE		0x841f
-#define DARKBLUE	0x0010
-#define YELLOW		0xffe0
-#define LIGHTYELLOW	0xfff0
-#define DARKYELLOW	0x8400 // mustard
-#define CYAN		0x07ff
-#define LIGHTCYAN	0x87ff
-#define DARKCYAN	0x0410
-#define MAGENTA		0xf81f
-#define VIOLET		0xfc1f
-#define BLUEVIOLET	0x8010
-#define ORCHID		0xA145 
-*/
+
 /*--------------------------------------*/
 /* [RENDER TEXT OPTIMIZATIONS] +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
 From 0.70b11 the Font Rendering Engine has some optimizations for render font faster but this require much more code.
